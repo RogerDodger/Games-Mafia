@@ -2,8 +2,9 @@ README
 MANIFEST
 Makefile.PL
 lib/Games/Mafia.pm
+lib/Games/Mafia/Tally.pm
 lib/Games/Mafia/Player.pm
 lib/Games/Mafia/Player/Goon.pm
 lib/Games/Mafia/Player/Townie.pm
-t/Games-Mafia.t
+t/*
 Changes

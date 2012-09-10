@@ -1,69 +1,127 @@
 package Games::Mafia::Player;
 
+use strict;
+use warnings;
+
 use Carp;
 
 my @roles = qw/Goon Townie/;
 for(@roles) {
+	local $@ = '';
 	eval("use Games::Mafia::Player::$_");
 	die "Games::Mafia::Player::$_ failed to load: $@" if $@;
 }
 
 sub new {
-	my $class = shift;
-	my %a = @_;
+	my ($class, %a) = @_;
 	my $self = bless {}, $class;
 	
-	if(defined $a{role}) {
-		carp "Role should be assigned by using the correct subclass." if $^W;
-		my $role = delete $a{role};
-		return "Games::Mafia::Player::$role"->new(%a);
-	}
-	
 	$self->{life} = $a{life} // 1;
-	$self->{name} = $a{name} or croak "Players must have a name.";
+	$self->{game} = $a{game} or croak "Players must be in a game.";
+	$self->{key}  = $a{key}  or croak "Players must have a key.";
+	$self->{name} = $a{name} // $self->{key};
 	
 	return $self;
 }
 
-sub roles { @roles }
-sub act { croak $self->role. " has no action." }
+sub roles {
+	@roles;
+}
 
-sub role { undef }
-sub role_lynched { shift->role }
-sub role_killed { shift->role }
+sub act {
+	croak shift->role . " has no action.";
+}
+sub can_act {
+	0;
+}
 
-sub team { undef }
-sub team_scouted { shift->team }
+sub vote {
+	my $self = shift;
+	return $self->{game}->tally->{votes}->{ $self->key } = shift if @_;
+	return $self->{game}->tally->{votes}->{ $self->key };
+}
+sub logs {
+	my $self = shift;
+	return $self->{game}->logs->{players}{ $self->key };
+}
+sub can_vote {
+	0;
+}
+sub is_candidate {
+	shift->is_alive;
+}
+
+sub game {
+	return shift->{game};
+}
+sub name {
+	return shift->{name};
+}
+sub key {
+	return shift->{key};
+}
+
+sub role { 
+	undef;
+}
+sub role_lynched { 
+	shift->role;
+}
+sub role_killed { 
+	shift->role;
+}
+
+sub team {
+	undef;
+}
+sub team_scouted {
+	shift->team;
+}
 
 sub lynch {
-	my($self, $game) = @_;
-	if(!ref $self or !ref $game) {croak "Game and self must be instances." }
+	my $self = shift;
 	
-	$self->{life} = 0;
-	$game->_log($game->logs->{game}, 
-		$self->{name} . " (" . $self->role_lynched . ") has been lynched.");
+	return $self if !$self->is_alive;
 	
-	return 1;
+	$self->{life}--;
+	$self->{game}->log(
+		player  => $self,
+		message => $self->name . " (" . $self->role_lynched . ") has been lynched.",
+		type    => 'death',
+		private => 0,
+	) if !$self->is_alive;
+	
+	return $self;
 }
 
 sub kill {
-	my($self, $game) = @_;
-	if(!ref $self || !ref $game) {croak "Game and self must be instances" }
+	my $self = shift;
 	
-	$self->{life} = 0;
-	$game->_log($game->logs->{game},
-		$self->{name} . " (" . $self->role_killed . ") has been killed.");
+	return $self if !$self->is_alive;
 	
-	return 1;
+	$self->{life}--;
+	$self->{game}->log(
+		player  => $self,
+		message => $self->name . " (" . $self->role_lynched . ") has been killed.",
+		type    => 'death',
+		private => 0,
+	) if !$self->is_alive;
+	
+	return $self;
 }
 
 sub is_alive {
 	my $self = shift;
-	if (!ref $self) { croak "is_alive must be performed on an instance." }
 	
 	return 1 if $self->{life} > 0;
-	return;
+	0;
 }
+
+sub is_winner {	
+	0;
+}
+
+1;
 
 =head1 SEE ALSO
 
@@ -73,7 +131,7 @@ L<Games::Mafia>
 
 Cameron Thornton, E<lt>cthor@cpan.orgE<gt>
 
-=head1 COPYRIGHT AND LICENCE
+=head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2012 by Cameron Thornton.
 
@@ -82,5 +140,3 @@ it under the same terms as Perl itself, either Perl version 5.14.2 or,
 at your option, any later version of Perl 5 you may have available.
 
 =cut
-
-1;
