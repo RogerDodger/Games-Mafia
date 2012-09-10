@@ -17,7 +17,7 @@ sub new {
 sub reset {
 	my $self = shift;
 	delete $self->{votes};
-	$self->{votes}{ $_->key } = '' for $self->{game}->players_list;
+	$self->{votes}{ $_->key } = '' for $self->{game}->players;
 }
 
 =head2 on 

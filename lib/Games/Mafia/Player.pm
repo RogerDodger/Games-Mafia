@@ -42,7 +42,7 @@ sub vote {
 }
 sub logs {
 	my $self = shift;
-	return $self->{game}->logs->{players}{ $self->key };
+	return $self->{game}->logs(player => $self);
 }
 sub can_vote {
 	0;
@@ -51,9 +51,6 @@ sub is_candidate {
 	shift->is_alive;
 }
 
-sub game {
-	return shift->{game};
-}
 sub name {
 	return shift->{name};
 }

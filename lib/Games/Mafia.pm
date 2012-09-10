@@ -10,7 +10,7 @@ use Games::Mafia::Player;
 use Games::Mafia::Tally;
 use Games::Mafia::Log;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 NAME
 
@@ -18,8 +18,8 @@ Games::Mafia - Perl implementation of the mafia party game.
 
 =head1 DESCRIPTION
 
-Creates a game object which can perform the necessary logic for
-hosting/running a mafia game.
+Creates a game object which can perform the necessary logic for hosting/running
+a mafia game.
 
 =head1 SYNOPSIS
 
@@ -173,7 +173,7 @@ Returns an array of all players whose win condition has been met.
 sub winners {
 	my $self = shift;
 	
-	return grep { $_->is_winner } $self->players_list;
+	return grep { $_->is_winner } $self->players;
 }
 
 =head2 add_player
@@ -215,16 +215,14 @@ sub add_player {
 			grep { $role eq $_} Games::Mafia::Player->roles;
 			
 		croak "Player with key '$key' already exists." if 
-			grep  { $key eq $_->key } 
-			map   { $self->players->{$_} } 
-			keys %{ $self->players };
+			grep { $key eq $_->key } $self->players;
 			
 		$a{name} //= $key;
 		$a{game}   = $self;
 		$a{key}    = $key;
 		
-		$self->players->{$key} = "Games::Mafia::Player::$role"->new(%a);
-		$self->players->{$key}->vote('');
+		$self->{players}->{$key} = "Games::Mafia::Player::$role"->new(%a);
+		$self->player($key)->vote('');
 		$self->log(
 			message => $a{name} . " has joined the game.",
 			private => 0,
@@ -253,7 +251,7 @@ sub remove_player {
 		my $player = $self->player(shift);
 			
 		delete $self->tally->{votes}{$player->key};
-		delete $self->players->{$player->key};
+		delete $self->{players}{$player->key};
 		$self->log( 
 			message => $player->name . " has left the game.",
 			private => 0,
@@ -276,39 +274,27 @@ sub player {
 	my ( $self, $player ) = @_;
 	
 	return $player if eval { $player->isa('Games::Mafia::Player') };
-	return $self->players->{$player} if defined $self->players->{$player};
+	return $self->{players}{$player} if defined $self->{players}{$player};
 	
 	croak "Cannot resolve a player from '$player'";
 }
 
 =head2 players
 
-Returns a hash ref containing all the players in the game.
+Returns an array of all the players in the game, sorted by names (not keys!). 
 
-  $game->players->{Bob};   #Returns Bob's Player object.
+  #Print the name of all the players in the game
+  print $_->name . "\n" for $game->players;
 
 =cut
 
 sub players {
-	shift->{players};
-}
-
-=head2 players_list
-
-Returns an array of all the players in the game, sorted by names (not keys!). 
-
-  #Print the name of all the players in the game
-  print $_->name . "\n" for $game->players_list;
-
-=cut
-
-sub players_list {
 	my $self = shift;
 	
 	my @players = 
-		map   { $self->players->{$_} } 
-		grep  { $_ ne 'Nobody' } 
-		keys %{ $self->players };
+		map   { $self->player($_) } 
+		grep  { $_ ne 'Nobody'    } 
+		keys %{ $self->{players}  };
 
 	return sort { $a->name cmp $b->name } @players;
 }
@@ -322,7 +308,7 @@ Returns an array of all the living players.
 sub players_alive {
 	my $self = shift;
 	
-	my @players = grep { $_->is_alive } $self->players_list;
+	my @players = grep { $_->is_alive } $self->players;
 	return @players;
 }
 
@@ -335,7 +321,7 @@ Returns an array of all the dead players.
 sub players_dead {
 	my $self = shift;
 	
-	my @players = grep { !$_->is_alive } $self->players_list;
+	my @players = grep { !$_->is_alive } $self->players;
 	return @players;
 }
 
@@ -350,7 +336,7 @@ Returns an array of all the players in a given team.
 sub players_in {
 	my ($self, $team) = @_;
 	
-	my @players = grep { $_->team eq $team } $self->players_list;
+	my @players = grep { $_->team eq $team } $self->players;
 	return @players;
 }
 
@@ -455,7 +441,7 @@ organised non-town roles (e.g., the Mafia).
 sub electorate {	
 	my $self = shift;
 	
-	my @electorate = grep { $_->can_vote } $self->players_list;
+	my @electorate = grep { $_->can_vote } $self->players;
 	return @electorate;
 }
 
@@ -468,7 +454,7 @@ Returns an array of the players who may be voted on.
 sub candidates {
 	my $self = shift;
 	
-	my @candidates = grep { $_->is_candidate } $self->players_list;
+	my @candidates = grep { $_->is_candidate } $self->players;
 	
 	#Check if 'Nobody' is a candidate
 	push @candidates, $self->player('Nobody') if 
@@ -504,7 +490,9 @@ sub date {
 
 =head2 logs
 
-Returns an array of the game's logs. All logs are L<Games::Mafia::Log> objects.
+Returns the game's logs. All logs are L<Games::Mafia::Log> objects.
+
+Returns an array in list context, and an array ref in scalar context.
 
 Optional hash arguments may be provided to filter the results.
 
@@ -515,8 +503,7 @@ Optional hash arguments may be provided to filter the results.
 
 C<type> can be any of C<vote death general>.
 
-Recent logs work by showing all logs that haven't been selected as recent logs
-before.
+A log is considered "recent" if it hasn't been selected as a recent log before.
 
 =cut
 
@@ -538,7 +525,8 @@ sub logs {
 		$_->{recent} = 0 for @logs;
 	}
 	
-	return @logs;
+	return @logs if wantarray;
+	return \@logs;
 }
 
 sub log {

@@ -27,9 +27,9 @@ is(
 	'Night 1',
 	'Game starts on Night 1',
 );
-is_deeply(
-	[ ($game->logs(player => 'Nobody', recent => 1))[0]->msg ],
-	[ 'Game created.' ],
+is(
+	$game->logs(player => 'Nobody', recent => 1)->[0]->msg,
+	'Game created.',
 	'Game creation logged.',
 );
 ok(

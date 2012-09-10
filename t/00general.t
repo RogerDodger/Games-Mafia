@@ -28,21 +28,21 @@ my $game = Games::Mafia->new(
 );
 
 isa_ok( $game, 'Games::Mafia' );
-isa_ok( $game->players->{RogerDodger}, 'Games::Mafia::Player' );
+isa_ok( $game->player('RogerDodger'), 'Games::Mafia::Player' );
 
 is(
-	$game->players->{RogerDodger}->role,
+	$game->player('RogerDodger')->role,
 	'Townie', 
 	'RogerDodger isa Townie'
 );
-is_deeply(
-	[ ($game->logs(player => 'Nobody', recent => 1))[0]->msg ],
-	[ 'Game created.' ],
+is(
+	$game->logs(player => 'Nobody', recent => 1)->[0]->msg,
+	'Game created.',
 	'Game creation logged.',
 );
 is( 
 	$game->add_player( Invader_Zim => { role => 'Goon' } )
-		->players->{Invader_Zim}->role, 
+		->player('Invader_Zim')->role, 
 	'Goon', 
 	'Chained add_player working as intended',
 );
@@ -52,17 +52,16 @@ is(
 	'Initial date is "night 1"',
 );
 is( 
-	$game->players->{Nobody}->role,
+	$game->player('Nobody')->role,
 	undef, 
 	'Player "Nobody" exists under team undef'
 );
-	
 ok(
 	(grep /Townie/, Games::Mafia::Player->roles), 
 	'Townie role exists',
 );
 ok(
-	(grep /Nohead/, keys $game->players), 
+	(grep /Nohead/, $game->players), 
 	'Nohead exists',
 );
 ok(
@@ -74,7 +73,7 @@ ok(
 	'Nohead is dead',
 );
 ok(
-	!$game->players->{Nohead}->is_alive,
+	!$game->player('Nohead')->is_alive,
 	'Nohead is definitely dead',
 );
 
@@ -133,7 +132,7 @@ my $game3 = Games::Mafia->new(players => {
 	},
 });
 is_deeply(
-	[ map { $_->key } $game3->players_list ],
+	[ map { $_->key } $game3->players ],
 	[ qw/A Q Y Z/ ],
 	'players_list returned and ordered as intended'
 );
